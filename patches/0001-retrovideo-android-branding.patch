@@ -1,7 +1,7 @@
 diff --git a/pkg/android/phoenix/build.gradle b/pkg/android/phoenix/build.gradle
 --- a/pkg/android/phoenix/build.gradle
 +++ b/pkg/android/phoenix/build.gradle
-@@ -38,6 +38,7 @@ android {
+@@ -38,5 +38,6 @@ android {
  
    defaultConfig {
 +    applicationId "com.yellowblitz.retrovideo"
