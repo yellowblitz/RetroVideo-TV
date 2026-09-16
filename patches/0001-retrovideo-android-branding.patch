@@ -1,0 +1,27 @@
+diff --git a/pkg/android/phoenix/build.gradle b/pkg/android/phoenix/build.gradle
+--- a/pkg/android/phoenix/build.gradle
++++ b/pkg/android/phoenix/build.gradle
+@@ -38,6 +38,7 @@ android {
+ 
+   defaultConfig {
++    applicationId "com.yellowblitz.retrovideo"
+     minSdkVersion 21
+     targetSdkVersion 36
+     externalNativeBuild {
+@@ -58,14 +59,14 @@ android {
+ 
+   productFlavors {
+     normal {
+-      resValue "string", "app_name", "RetroArch"
++      resValue "string", "app_name", "RetroVideo TV"
+       buildConfigField "boolean", "PLAY_STORE_BUILD", "false"
+ 
+       dimension "variant"
+     }
+     aarch64 {
+       applicationIdSuffix '.aarch64'
+-      resValue "string", "app_name", "RetroArch (AArch64)"
++      resValue "string", "app_name", "RetroVideo TV"
+       buildConfigField "boolean", "PLAY_STORE_BUILD", "false"
+ 
+       dimension "variant"
