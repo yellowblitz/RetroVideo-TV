@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-"$ROOT_DIR/scripts/prepare-upstream.sh"
+bash "$ROOT_DIR/scripts/prepare-upstream.sh"
 
 cd "$ROOT_DIR/work/RetroArch/pkg/android/phoenix"
 ./gradlew assembleAarch64Debug
