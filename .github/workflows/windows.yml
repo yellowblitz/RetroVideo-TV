@@ -1,0 +1,95 @@
+name: Build Windows Player
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'windows/**'
+      - '.github/workflows/windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout RetroVideo TV
+        uses: actions/checkout@v5
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish RetroVideo launcher
+        shell: pwsh
+        run: |
+          dotnet publish windows/RetroVideo.Win/RetroVideo.Win.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o build/launcher
+
+      - name: Assemble RetroArch + FFmpeg runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $retroArchUrl = 'https://buildbot.libretro.com/stable/1.22.2/windows/x86_64/RetroArch.7z'
+          $coresUrl = 'https://buildbot.libretro.com/stable/1.22.2/windows/x86_64/RetroArch_cores.7z'
+          $downloads = Join-Path $env:RUNNER_TEMP 'retrovideo-downloads'
+          $dist = Join-Path $PWD 'dist/RetroVideo-Windows'
+          $runtime = Join-Path $dist 'runtime'
+          $cores = Join-Path $runtime 'cores'
+
+          New-Item -ItemType Directory -Force -Path $downloads, $runtime, $cores | Out-Null
+
+          $retroArchive = Join-Path $downloads 'RetroArch.7z'
+          $coresArchive = Join-Path $downloads 'RetroArch_cores.7z'
+          Invoke-WebRequest -Uri $retroArchUrl -OutFile $retroArchive
+          Invoke-WebRequest -Uri $coresUrl -OutFile $coresArchive
+
+          & 7z x $retroArchive "-o$runtime" -y | Out-Host
+          & 7z e $coresArchive "-o$cores" 'ffmpeg_libretro.dll' -r -y | Out-Host
+
+          if (!(Test-Path (Join-Path $runtime 'retroarch.exe'))) {
+            throw 'retroarch.exe was not found after extracting the Windows runtime.'
+          }
+          if (!(Test-Path (Join-Path $cores 'ffmpeg_libretro.dll'))) {
+            throw 'ffmpeg_libretro.dll was not found in RetroArch_cores.7z.'
+          }
+
+          Copy-Item build/launcher/RetroVideo.exe (Join-Path $dist 'RetroVideo.exe') -Force
+          Copy-Item windows/README.md (Join-Path $dist 'README.md') -Force
+
+          @'
+          RetroVideo for Windows v0.1
+
+          1. Run RetroVideo.exe.
+          2. Browse to a video or drag a video onto the window.
+          3. Choose a RetroArch .slangp shader preset if desired.
+          4. Click PLAY VIDEO.
+
+          Playback keys inside the player:
+          P   pause/resume
+          F1  RetroArch quick menu / shader controls
+          Esc exit player
+
+          Keep the runtime folder beside RetroVideo.exe.
+          '@ | Set-Content -Encoding UTF8 (Join-Path $dist 'QUICKSTART.txt')
+
+          Push-Location (Split-Path $dist -Parent)
+          & 7z a -tzip -mx=7 (Join-Path $PWD 'RetroVideo-Windows-v0.1.zip') (Split-Path $dist -Leaf) | Out-Host
+          Pop-Location
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: RetroVideo-Windows-v0.1
+          path: dist/RetroVideo-Windows-v0.1.zip
+          if-no-files-found: error
