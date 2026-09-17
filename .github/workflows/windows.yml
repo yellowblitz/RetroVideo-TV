@@ -21,11 +21,11 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
 
-      - name: Publish RetroVideo launcher
+      - name: Publish RetroVideo player
         shell: pwsh
         run: |
           dotnet publish windows/RetroVideo.Win/RetroVideo.Win.csproj `
@@ -36,60 +36,80 @@ jobs:
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -o build/launcher
 
-      - name: Assemble RetroArch media runtime
+      - name: Assemble playback and shader runtimes
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $mpvUrl = 'https://github.com/zhongfly/mpv-winbuild/releases/download/2026-09-16-0b7ed670f7/mpv-dev-lgpl-x86_64-20260916-git-0b7ed670f7.7z'
           $retroArchUrl = 'https://buildbot.libretro.com/stable/1.22.2/windows/x86_64/RetroArch.7z'
-          $downloads = Join-Path $env:RUNNER_TEMP 'retrovideo-downloads'
-          $retroExtract = Join-Path $env:RUNNER_TEMP 'retroarch-runtime-extract'
-          $dist = Join-Path $PWD 'dist/RetroVideo-Windows'
-          $runtime = Join-Path $dist 'runtime'
+          $temp = Join-Path $env:RUNNER_TEMP 'retrovideo-v02'
+          $mpvExtract = Join-Path $temp 'mpv'
+          $retroExtract = Join-Path $temp 'retroarch'
+          $dist = Join-Path $PWD 'dist/RetroVideo-Windows-v0.2'
+          $retroDest = Join-Path $dist 'retroarch'
 
-          New-Item -ItemType Directory -Force -Path $downloads, $retroExtract, $runtime | Out-Null
+          New-Item -ItemType Directory -Force -Path $temp, $mpvExtract, $retroExtract, $dist, $retroDest | Out-Null
 
-          $retroArchive = Join-Path $downloads 'RetroArch.7z'
+          $mpvArchive = Join-Path $temp 'mpv-dev.7z'
+          $retroArchive = Join-Path $temp 'RetroArch.7z'
+          Invoke-WebRequest -Uri $mpvUrl -OutFile $mpvArchive
           Invoke-WebRequest -Uri $retroArchUrl -OutFile $retroArchive
+
+          & 7z x $mpvArchive "-o$mpvExtract" -y | Out-Host
+          $mpvDll = Get-ChildItem $mpvExtract -Recurse -Filter 'libmpv-2.dll' -File | Select-Object -First 1
+          if ($null -eq $mpvDll) { throw 'libmpv-2.dll was not found in the pinned libmpv package.' }
+          Copy-Item $mpvDll.FullName (Join-Path $dist 'libmpv-2.dll') -Force
 
           & 7z x $retroArchive "-o$retroExtract" -y | Out-Host
           $retroExe = Get-ChildItem $retroExtract -Recurse -Filter 'retroarch.exe' -File | Select-Object -First 1
-          if ($null -eq $retroExe) {
-            throw 'retroarch.exe was not found after extracting the Windows runtime.'
-          }
-          Copy-Item (Join-Path $retroExe.Directory.FullName '*') $runtime -Recurse -Force
-
-          if (!(Test-Path (Join-Path $runtime 'retroarch.exe'))) {
-            throw 'retroarch.exe was not normalized into the final runtime directory.'
-          }
+          if ($null -eq $retroExe) { throw 'retroarch.exe was not found in the RetroArch runtime.' }
+          Copy-Item (Join-Path $retroExe.Directory.FullName '*') $retroDest -Recurse -Force
 
           Copy-Item build/launcher/RetroVideo.exe (Join-Path $dist 'RetroVideo.exe') -Force
           Copy-Item windows/README.md (Join-Path $dist 'README.md') -Force
 
           @'
-          RetroVideo for Windows v0.1
+          RetroVideo for Windows v0.2
 
-          1. Run RetroVideo.exe.
-          2. Browse to a video or drag a video onto the window.
-          3. Choose a RetroArch .slangp shader preset if desired.
-          4. Click PLAY VIDEO.
+          RetroVideo is now its own video-player UI.
 
-          Playback uses RetroArch's built-in media player.
+          Core controls:
+          - Open or drag/drop a video
+          - Play / pause and +/-10 second seek
+          - Timeline seeking
+          - Volume slider and mute
+          - Audio-track chooser
+          - Subtitle chooser + external subtitle loading
+          - Fullscreen
+          - Native live GPU filter presets and picture controls
+          - RetroArch .slangp compatibility mode retained in the Filters panel
 
-          Playback keys inside the player:
-          P   pause/resume
-          F1  RetroArch quick menu / shader controls
-          Esc exit player
+          Keyboard:
+          Space       Play/Pause
+          Left/Right  Seek -/+ 5 seconds
+          F           Fullscreen
+          Esc         Exit fullscreen
+          Ctrl+O      Open video
 
-          Keep the runtime folder beside RetroVideo.exe.
+          Playback engine: libmpv/FFmpeg (LGPL build)
+          Slang compatibility renderer: RetroArch 1.22.2
           '@ | Set-Content -Encoding UTF8 (Join-Path $dist 'QUICKSTART.txt')
 
+          @'
+          RetroVideo includes third-party components.
+          libmpv/FFmpeg Windows LGPL build: https://github.com/zhongfly/mpv-winbuild
+          mpv project: https://mpv.io/
+          RetroArch: https://github.com/libretro/RetroArch (GPLv3)
+          Shader presets inside RetroArch retain their respective upstream licenses.
+          '@ | Set-Content -Encoding UTF8 (Join-Path $dist 'THIRD_PARTY_NOTICES.txt')
+
           Push-Location (Split-Path $dist -Parent)
-          & 7z a -tzip -mx=7 (Join-Path $PWD 'RetroVideo-Windows-v0.1.zip') (Split-Path $dist -Leaf) | Out-Host
+          & 7z a -tzip -mx=7 (Join-Path $PWD 'RetroVideo-Windows-v0.2.zip') (Split-Path $dist -Leaf) | Out-Host
           Pop-Location
 
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
-          name: RetroVideo-Windows-v0.1
-          path: dist/RetroVideo-Windows-v0.1.zip
+          name: RetroVideo-Windows-v0.2
+          path: dist/RetroVideo-Windows-v0.2.zip
           if-no-files-found: error
