@@ -8,8 +8,7 @@ diff --git a/pkg/android/phoenix/build.gradle b/pkg/android/phoenix/build.gradle
      minSdkVersion 21
      targetSdkVersion 36
      externalNativeBuild {
-@@ -58,14 +59,14 @@ android {
- 
+@@ -62,17 +63,17 @@ android {
    productFlavors {
      normal {
 -      resValue "string", "app_name", "RetroArch"
@@ -24,8 +23,6 @@ diff --git a/pkg/android/phoenix/build.gradle b/pkg/android/phoenix/build.gradle
 +      resValue "string", "app_name", "RetroVideo TV"
        buildConfigField "boolean", "PLAY_STORE_BUILD", "false"
  
-       dimension "variant"
-@@ -74,5 +75,5 @@ android {
        dimension "variant"
        ndk {
 -        abiFilters 'arm64-v8a', 'x86_64'
