@@ -36,25 +36,20 @@ jobs:
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -o build/launcher
 
-      - name: Assemble RetroArch + FFmpeg runtime
+      - name: Assemble RetroArch media runtime
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $retroArchUrl = 'https://buildbot.libretro.com/stable/1.22.2/windows/x86_64/RetroArch.7z'
-          $coresUrl = 'https://buildbot.libretro.com/stable/1.22.2/windows/x86_64/RetroArch_cores.7z'
           $downloads = Join-Path $env:RUNNER_TEMP 'retrovideo-downloads'
           $retroExtract = Join-Path $env:RUNNER_TEMP 'retroarch-runtime-extract'
-          $coresExtract = Join-Path $env:RUNNER_TEMP 'retroarch-cores-extract'
           $dist = Join-Path $PWD 'dist/RetroVideo-Windows'
           $runtime = Join-Path $dist 'runtime'
-          $cores = Join-Path $runtime 'cores'
 
-          New-Item -ItemType Directory -Force -Path $downloads, $retroExtract, $coresExtract, $runtime, $cores | Out-Null
+          New-Item -ItemType Directory -Force -Path $downloads, $retroExtract, $runtime | Out-Null
 
           $retroArchive = Join-Path $downloads 'RetroArch.7z'
-          $coresArchive = Join-Path $downloads 'RetroArch_cores.7z'
           Invoke-WebRequest -Uri $retroArchUrl -OutFile $retroArchive
-          Invoke-WebRequest -Uri $coresUrl -OutFile $coresArchive
 
           & 7z x $retroArchive "-o$retroExtract" -y | Out-Host
           $retroExe = Get-ChildItem $retroExtract -Recurse -Filter 'retroarch.exe' -File | Select-Object -First 1
@@ -63,18 +58,8 @@ jobs:
           }
           Copy-Item (Join-Path $retroExe.Directory.FullName '*') $runtime -Recurse -Force
 
-          & 7z x $coresArchive "-o$coresExtract" -y | Out-Host
-          $ffmpegCore = Get-ChildItem $coresExtract -Recurse -Filter 'ffmpeg_libretro.dll' -File | Select-Object -First 1
-          if ($null -eq $ffmpegCore) {
-            throw 'ffmpeg_libretro.dll was not found in RetroArch_cores.7z.'
-          }
-          Copy-Item $ffmpegCore.FullName (Join-Path $cores 'ffmpeg_libretro.dll') -Force
-
           if (!(Test-Path (Join-Path $runtime 'retroarch.exe'))) {
             throw 'retroarch.exe was not normalized into the final runtime directory.'
-          }
-          if (!(Test-Path (Join-Path $cores 'ffmpeg_libretro.dll'))) {
-            throw 'ffmpeg_libretro.dll was not copied into the final cores directory.'
           }
 
           Copy-Item build/launcher/RetroVideo.exe (Join-Path $dist 'RetroVideo.exe') -Force
@@ -87,6 +72,8 @@ jobs:
           2. Browse to a video or drag a video onto the window.
           3. Choose a RetroArch .slangp shader preset if desired.
           4. Click PLAY VIDEO.
+
+          Playback uses RetroArch's built-in media player.
 
           Playback keys inside the player:
           P   pause/resume
