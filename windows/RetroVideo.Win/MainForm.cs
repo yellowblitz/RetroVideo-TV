@@ -14,7 +14,6 @@ public sealed class MainForm : Form
     private string BaseDir => AppContext.BaseDirectory;
     private string RuntimeDir => Path.Combine(BaseDir, "runtime");
     private string RetroArchExe => Path.Combine(RuntimeDir, "retroarch.exe");
-    private string FfmpegCore => Path.Combine(RuntimeDir, "cores", "ffmpeg_libretro.dll");
 
     public MainForm(string? initialVideo)
     {
@@ -167,10 +166,10 @@ public sealed class MainForm : Form
             return;
         }
 
-        if (!File.Exists(RetroArchExe) || !File.Exists(FfmpegCore))
+        if (!File.Exists(RetroArchExe))
         {
             MessageBox.Show(this,
-                "The bundled RetroArch/FFmpeg runtime is missing. Please run RetroVideo from the complete extracted ZIP.",
+                "The bundled RetroArch runtime is missing. Please run RetroVideo from the complete extracted ZIP.",
                 "Runtime missing", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
@@ -189,7 +188,7 @@ public sealed class MainForm : Form
             FileName = RetroArchExe,
             WorkingDirectory = RuntimeDir,
             UseShellExecute = false,
-            Arguments = $"-L {Quote(FfmpegCore)} --config {Quote(configPath)} {Quote(video)}"
+            Arguments = $"--config {Quote(configPath)} {Quote(video)}"
         };
 
         try
@@ -206,6 +205,7 @@ public sealed class MainForm : Form
     private string BuildConfig(string? shader)
     {
         var sb = new StringBuilder();
+        sb.AppendLine("builtin_mediaplayer_enable = \"true\"");
         sb.AppendLine("video_driver = \"vulkan\"");
         sb.AppendLine("menu_driver = \"ozone\"");
         sb.AppendLine($"video_fullscreen = \"{(_fullscreen.Checked ? "true" : "false")}\"");
